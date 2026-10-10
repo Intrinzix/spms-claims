@@ -128,7 +128,7 @@ ol.steps input { margin-top: 4px; accent-color: var(--accent); }
 <div class="wrap">
   <header>
     <h1>SPMS Claims Builder</h1>
-    <p class="sub">Add each payment and drop in the receipt and proof photos. You get a zip with one named PDF per receipt and proof of payment, ready for the Finance Controller, plus both claim emails to copy.</p>
+    <p class="sub">Add each payment and drop in the receipt and proof photos. You get a zip with one named PDF per receipt and proof of payment, ready for the Finance Controller, plus the claim email to copy.</p>
   </header>
 
   <div class="banner" id="banner">
@@ -158,15 +158,9 @@ ol.steps input { margin-top: 4px; accent-color: var(--accent); }
       </div>
 
       <section class="panel mail" aria-labelledby="m1H">
-        <div class="mail-head"><h2 id="m1H">Email 1 · Documents</h2><button class="copy" type="button" data-copy="m1">Copy body</button></div>
+        <div class="mail-head"><h2 id="m1H">Claim email</h2><button class="copy" type="button" data-copy="m1">Copy body</button></div>
         <dl class="mail-meta" id="m1meta"></dl>
         <pre id="m1"></pre>
-      </section>
-
-      <section class="panel mail" aria-labelledby="m2H">
-        <div class="mail-head"><h2 id="m2H">Email 2 · Authorise claim</h2><button class="copy" type="button" data-copy="m2">Copy</button></div>
-        <dl class="mail-meta" id="m2meta"></dl>
-        <pre id="m2"></pre>
       </section>
 
       <section class="panel" aria-labelledby="sH">
@@ -308,16 +302,10 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
   const ph = (v, label) => v ? esc(v) : `<span class="ph">[${label}]</span>`;
   const phT = (v, label) => v || `[${label}]`;
 
-  function itemsText(N) {
-    const byShop = [];
-    const seen = {};
-    S.payments.forEach(p => {
-      const shop = clean(p.shop) || "[Shop]"; const k = shop.toLowerCase();
-      if (!seen[k]) { seen[k] = { shop, tags: [] }; byShop.push(seen[k]); }
-      p.receipts.forEach(r => seen[k].tags.push(N["tag:" + r.id]));
-    });
-    // follows the template's "Pizza Hut order 1, 2, 3": e.g. "CHAGEE order", "Snack Depot orders 1, 2, 3", "Gadget Bazaar orders 1a, 1b, 2"
-    return joinList(byShop.map(s => { const t = s.tags.filter(Boolean); return t.length > 1 ? `${s.shop} orders ${t.join(", ")}` : `${s.shop} order${t.length ? " " + t[0] : ""}`; }));
+  function itemsText() {
+    const shops = [];
+    S.payments.forEach(p => { const sh = clean(p.shop) || "[Shop]"; if (!shops.some(x => x.toLowerCase() === sh.toLowerCase())) shops.push(sh); });
+    return shops.length < 3 ? shops.join(" and ") : shops.slice(0, -1).join(", ") + ", and " + shops[shops.length - 1];
   }
   const joinList = a => a.length < 2 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
 
@@ -328,20 +316,23 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
       <dt>CC</dt><dd><span class="ph">[House Director email]</span>, <span class="ph">[VP (Student Life) email]</span></dd>
       <dt>Subject</dt><dd>${ph(ev, "Event / Purchase")} Claims <span class="note">(suggested)</span></dd>
       <dt>Attach</dt><dd>${esc(phT(ev, "Event / Purchase"))} Claims.zip · mark as important (!)</dd>`;
-    const shopLines = S.payments.map(p => `- ${label(p, N)}: SGD ${sgd(payTotal(p))}`).join("\n");
-    $("#m1").textContent = `Hi [FinCon name],
+    // one email: the zip plus the authorisation, worded like the House Director's approved example
+    const where = $("#claimType").value === "purchase" ? "for " + phT(ev, "Purchase") : "on " + phT(ev, "Event Name");
+    $("#m1").textContent = `Dear [FinCon name],
 
-Please find attached the claims for ${phT(ev, "Event / Purchase")}, totalling SGD ${sgd(total)}:
-${shopLines}
+I, [Matric Name] ([Matric Number]), will allow the claimant [FinCon Matric Name], [FinCon Matric Number] to claim on my behalf the amount of $${sgd(total)} for the purchase of the ${itemsText(N)} items ${where}.
+
+If there is any dispute, I will settle myself and NTU is not liable to settle the dispute with the students involved.
 
 Thank you!
+
+Warm Regards,
 ${phT(val("prepName"), "Your name")}${val("prepRole") ? "\n" + val("prepRole") : ""}`;
-    $("#m2meta").innerHTML = `<dt>From</dt><dd><span class="ph">[Claimant]</span></dd><dt>To</dt><dd><span class="ph">[FinCon school email]</span></dd>`;
-    $("#m2").textContent = `I, [Matric Name], [Matric Number] will allow the claimant [FinCon Matric Name], [FinCon Matric Number] to claim on my behalf the amount of SGD ${sgd(total)} for the purchase of ${itemsText(N)} ${$("#claimType").value === "purchase" ? "for " + phT(ev, "Purchase") : "on " + phT(ev, "Event Name")}. If there is any dispute, I will settle myself and NTU is not liable to settle the dispute with the students involved.`;
   }
 
+
   // ---------- steps ----------
-  const STEPS = ["Download the claim zip", "Send Email 1 to the FinCon, CC the House Director and VP (Student Life), with the zip attached", "Mark Email 1 as important (!)", "Send Email 2 from the claimant to the FinCon's school email", "Text the FinCon that the claim has been sent"];
+  const STEPS = ["Download the claim zip", "Send the claim email to the FinCon's school email, CC the House Director and VP (Student Life), with the zip attached", "Mark the email as important (!)", "Text the FinCon that the claim has been sent"];
   $("#steps").innerHTML = STEPS.map((s, i) => `<li><label><input type="checkbox" id="step${i}"> <span>${s}</span></label></li>`).join("");
 
   // ---------- events ----------
