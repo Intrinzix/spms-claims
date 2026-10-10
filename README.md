@@ -18,9 +18,9 @@ A one-page tool for preparing SPMS House claims: from events, or general purchas
 |---|---|
 | One receipt, one payment | `BBQ Wholesale Receipt - $718.78.pdf`, `BBQ Wholesale Proof of Payment - $718.78.pdf` |
 | No receipt, chat instead | `K Bakery Proof of Convo - $40.pdf`, `K Bakery Proof of Payment - $40.pdf` |
-| Same shop, several receipts, one payment | `Shopee Receipt 1 - $12.pdf`, `Shopee Receipt 2 - $23.pdf`, `Shopee Proof of Payment - $35.pdf` |
+| Same shop, several receipts, one payment | `Shopee Receipt 1 - $8.42.pdf`, `Shopee Receipt 2 - $17.20.pdf`, `Shopee Proof of Payment - $25.62.pdf` |
 | Same shop, separate payments | `Prime Receipt 1 - $24.35.pdf`, `Prime Proof of Payment 1 - $24.35.pdf`, `Prime Receipt 2 - $90.85.pdf`, `Prime Proof of Payment 2 - $90.85.pdf` |
-| Same shop, separate payments, several receipts in one | `Shopee Receipt 1.1 - $8.42.pdf`, `Shopee Receipt 1.2 - $17.20.pdf`, `Shopee Proof of Payment 1 - $25.62.pdf`, ... |
+| Same shop, separate payments, several receipts in one | `Shopee Receipt 1a - $8.42.pdf`, `Shopee Receipt 1b - $17.20.pdf`, `Shopee Proof of Payment 1 - $25.62.pdf`, `Shopee Receipt 2 - $12.32.pdf`, `Shopee Proof of Payment 2 - $12.32.pdf` |
 
 ## Sending a claim
 
