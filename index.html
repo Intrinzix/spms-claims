@@ -210,7 +210,7 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
       const page = await doc.getPage(1), v = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: 200 / Math.max(v.width, v.height) });
       const c = document.createElement("canvas"); c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
       const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
-      await page.render({ canvasContext: g, viewport: vp }).promise;
+      await page.render({ canvasContext: g, viewport: vp, intent: "print" }).promise; // "print" avoids waiting on animation frames, which pause in background tabs
       f.thumb = c.toDataURL("image/jpeg", 0.8); doc.destroy();
     } catch (_) { /* no preview: the box keeps showing "PDF" */ }
   }
