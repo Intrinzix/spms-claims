@@ -7,14 +7,20 @@ A one-page tool for preparing SPMS House claims: from events, or general purchas
 ## What it does
 
 1. Add one card per payment: the shop, each receipt's amount, and photos of the receipts and the proof of payment.
-2. Files are named to the claims procedure automatically:
-   - `[Company] Receipt - $[Amount]`, `[Company] Proof of Payment - $[Amount]`
-   - Several receipts, one payment: `Receipt 1`, `Receipt 2`, ...
-   - Several payments at the same shop: `Receipt 1.1`, `Receipt 1.2`, `Proof of Payment 1`, ...
-3. Download:
-   - **Claim zip**: the named files, ready to email to the Finance Controller.
-   - **Claim pack PDF**: a summary page plus each receipt shown beside its proof of payment.
-4. Copy the two claim emails (Email 1: documents; Email 2: authorise claim) with the total and receipt list filled in.
+   - No receipt from the seller? Switch the row to **Proof of Convo** and add the chat screenshot instead.
+2. Download the **claim zip**: one PDF per receipt / proof of payment, named to the claims procedure. Several photos of one receipt become one multi-page PDF.
+3. Copy the two claim emails (Email 1: documents; Email 2: authorise claim) with the total and receipt list filled in.
+4. Optional: download the **claim pack**, a summary PDF for your own records.
+
+## File names
+
+| Case | Files |
+|---|---|
+| One receipt, one payment | `BBQ Wholesale Receipt - $718.78.pdf`, `BBQ Wholesale Proof of Payment - $718.78.pdf` |
+| No receipt, chat instead | `K Bakery Proof of Convo - $40.pdf`, `K Bakery Proof of Payment - $40.pdf` |
+| Same shop, several receipts, one payment | `Shopee Receipt 1 - $12.pdf`, `Shopee Receipt 2 - $23.pdf`, `Shopee Proof of Payment - $35.pdf` |
+| Same shop, separate payments | `Prime Receipt 1 - $24.35.pdf`, `Prime Proof of Payment 1 - $24.35.pdf`, `Prime Receipt 2 - $90.85.pdf`, `Prime Proof of Payment 2 - $90.85.pdf` |
+| Same shop, separate payments, several receipts in one | `Shopee Receipt 1.1 - $8.42.pdf`, `Shopee Receipt 1.2 - $17.20.pdf`, `Shopee Proof of Payment 1 - $25.62.pdf`, ... |
 
 ## Sending a claim
 
@@ -30,4 +36,4 @@ Everything runs in your browser. Photos, amounts and names are never uploaded or
 
 ## Credits
 
-PDF and zip generation: [pdf-lib](https://pdf-lib.js.org/), [@pdf-lib/fontkit](https://github.com/Hopding/fontkit), [JSZip](https://stuk.github.io/jszip/). Embedded fonts: Carlito (SIL Open Font License 1.1) and DejaVu Sans Mono (Bitstream Vera license), subset to Latin characters.
+PDF and zip generation: [pdf-lib](https://pdf-lib.js.org/), [@pdf-lib/fontkit](https://github.com/Hopding/fontkit), [JSZip](https://stuk.github.io/jszip/). Embedded fonts (claim pack): Carlito (SIL Open Font License 1.1) and DejaVu Sans Mono (Bitstream Vera license), subset to Latin characters.
