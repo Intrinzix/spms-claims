@@ -82,6 +82,7 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
 .slot img { width: 100%; height: 100%; object-fit: cover; }
 .slot .count { position: absolute; right: 3px; bottom: 3px; background: var(--ink); color: var(--bg); font-size: 0.7rem; border-radius: 4px; padding: 0 5px; }
 .slot .pdf { font-weight: 600; font-size: 0.875rem; color: var(--ink); }
+.slot .badge { position: absolute; left: 3px; top: 3px; background: var(--accent); color: var(--accent-ink); font-size: 0.625rem; font-weight: 600; border-radius: 4px; padding: 0 4px; line-height: 1.5; }
 .doc-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .kind { font-size: 0.9375rem; font-weight: 600; color: var(--ink); }
 .kindsel { align-self: flex-start; font-weight: 600; font-size: 0.9375rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
@@ -166,7 +167,7 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
     <div class="ticket" aria-live="polite" id="ticket"></div>
     <div class="actions">
       <button class="btn" id="zipBtn" type="button">Download claim zip</button>
-      <button class="btn alt" id="packBtn" type="button">Download summary receipt</button>
+      <button class="btn alt" id="packBtn" type="button">Download summary receipt (optional)</button>
       <p class="note" id="dlNote" hidden></p>
     </div>
 
@@ -196,6 +197,23 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
   const S = { payments: [] };
   // a receipt row is a "Receipt", or a "Proof of Convo" (chat screenshot) when the seller gives no receipt
   const KINDS = ["Receipt", "Proof of Convo"];
+
+  // PDF previews: pdf.js is loaded only when someone adds a PDF (it's large), then page 1 is drawn small for the photo box
+  const loadScript = src => new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+  let pdfjsReady = null;
+  const ensurePdfjs = () => pdfjsReady || (pdfjsReady = loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js")
+    .then(() => loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js")).catch(e => { pdfjsReady = null; throw e; }));
+  async function pdfThumb(f) {
+    try {
+      await ensurePdfjs();
+      const doc = await window.pdfjsLib.getDocument({ data: new Uint8Array(await f.blob.arrayBuffer()) }).promise;
+      const page = await doc.getPage(1), v = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: 200 / Math.max(v.width, v.height) });
+      const c = document.createElement("canvas"); c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: g, viewport: vp }).promise;
+      f.thumb = c.toDataURL("image/jpeg", 0.8); doc.destroy();
+    } catch (_) { /* no preview: the box keeps showing "PDF" */ }
+  }
   const newDoc = (amount = "", kind = "Receipt") => ({ id: nid(), amount, kind, files: [] });
   const newPay = (shop = "") => ({ id: nid(), shop, receipts: [newDoc()], proof: newDoc() });
 
@@ -237,7 +255,9 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
   function slotHTML(doc) {
     const f = doc.files[0];
     let inner = "Add photo";
-    if (f) inner = f.type === "application/pdf" ? '<span class="pdf">PDF</span>' : `<img alt="" src="${f.url}">`;
+    if (f) inner = f.type === "application/pdf"
+      ? (f.thumb ? `<img alt="" src="${f.thumb}"><span class="badge">PDF</span>` : '<span class="pdf">PDF</span>')
+      : `<img alt="" src="${f.url}">`;
     const more = doc.files.length > 1 ? `<span class="count">${doc.files.length}</span>` : "";
     // a real <label> around the file input: tapping it opens the picker natively (more reliable on phones than a scripted click)
     return `<label class="slot${f ? " has" : ""}" data-slot="${doc.id}">${inner}${more}<input type="file" data-file="${doc.id}" accept="image/*,application/pdf" multiple aria-label="Add or replace photos"></label>`;
@@ -369,6 +389,7 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     if (d.kind) { find(d.kind).kind = e.target.value; derive(); }
     else if (d.file && e.target.files.length) setFiles(d.file, e.target.files);
   });
+  payEl.addEventListener("error", e => { const im = e.target; if (im.tagName === "IMG" && im.closest(".slot")) { const sp = document.createElement("span"); sp.className = "pdf"; sp.textContent = "Added"; im.replaceWith(sp); } }, true);
   payEl.addEventListener("dragover", e => { const s = e.target.closest(".slot"); if (s) { e.preventDefault(); s.classList.add("drag"); } });
   payEl.addEventListener("dragleave", e => { const s = e.target.closest(".slot"); if (s) s.classList.remove("drag"); });
   payEl.addEventListener("drop", e => { const s = e.target.closest(".slot"); if (!s) return; e.preventDefault(); setFiles(s.dataset.slot, e.dataTransfer.files); });
@@ -387,6 +408,7 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     const doc = find(id); doc.files.forEach(f => URL.revokeObjectURL(f.url));
     doc.files = ok.map(f => ({ name: f.name, type: typeOf(f), blob: f, url: URL.createObjectURL(f) }));
     render();
+    doc.files.filter(f => f.type === "application/pdf").forEach(f => pdfThumb(f).then(() => render()));
   }
   document.querySelectorAll(".panel input").forEach(i => i.addEventListener("input", () => derive()));
   document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
@@ -508,6 +530,53 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     need(30); rule(y + 8, 0.5); y -= 8;
     pg.drawText("Total", { x: mg, y, size: 11, font: TB, color: black }); right(sgd(total), amtX, y, TB, 11); y -= 6; rule(y, 1);
 
+    // then one page per payment with the photos: receipts left, proof right: receipts left, proof right
+    for (const [k, p] of S.payments.entries()) {
+      pg = pdf.addPage([W, HT]); y = HT - mg;
+      pg.drawText(fit(label(p, N), TB, 13, W - 2 * mg), { x: mg, y: y - 10, size: 13, font: TB, color: black });
+      y -= 18; rule(y, 0.5); y -= 20;
+      const gap = 20, lw = (W - 2 * mg - gap) * 0.54, rw = W - 2 * mg - gap - lw, top = y;
+      const kinds = [...new Set(p.receipts.map(r => r.kind || "Receipt"))];
+      const colLabel = kinds.length > 1 ? "Receipts" : kinds[0] === "Receipt" && p.receipts.length > 1 ? "Receipts" : kinds[0];
+      pg.drawText(colLabel, { x: mg, y, size: 10.5, font: TI, color: black });
+      pg.drawText("Proof of payment", { x: mg + lw + gap, y, size: 10.5, font: TI, color: black });
+      // every photo / PDF page of a document, laid out in a grid (1 column for one item, 2 for several)
+      const items = async d => {
+        const out = [];
+        for (const f of d.files) {
+          if (f.type === "application/pdf") {
+            const bytes = new Uint8Array(await f.blob.arrayBuffer()); const src = await PDFLib.PDFDocument.load(bytes);
+            for (const pgE of await pdf.embedPdf(bytes, src.getPageIndices())) out.push({ kind: "page", obj: pgE, w: pgE.width, h: pgE.height });
+          } else out.push(await embedAny(pdf, f));
+        }
+        return out;
+      };
+      const draw = async (d, x, yTop, w, h) => {
+        const its = await items(d);
+        if (its.length) {
+          const cols = its.length > 1 ? 2 : 1, rows = Math.ceil(its.length / cols), g = 6;
+          const cw = (w - g * (cols - 1)) / cols, ch = (h - 26 - g * (rows - 1)) / rows;
+          let rowTop = yTop;
+          for (let r = 0; r < rows; r++) {
+            let rowLow = rowTop;
+            its.slice(r * cols, r * cols + cols).forEach((e, c) => {
+              const cx0 = x + c * (cw + g), s = Math.min(cw / e.w, ch / e.h, 1.2), dw = e.w * s, dh = e.h * s;
+              if (e.kind === "img") pg.drawImage(e.obj, { x: cx0, y: rowTop - dh, width: dw, height: dh }); else pg.drawPage(e.obj, { x: cx0, y: rowTop - dh, xScale: s, yScale: s });
+              pg.drawRectangle({ x: cx0, y: rowTop - dh, width: dw, height: dh, borderColor: black, borderWidth: 0.5 });
+              rowLow = Math.min(rowLow, rowTop - dh);
+            });
+            rowTop = rowLow - g;
+          }
+          yTop = rowTop + g;
+        } else { pg.drawRectangle({ x, y: yTop - 60, width: w, height: 60, borderColor: grey, borderWidth: 0.5, borderDashArray: [3, 3] }); pg.drawText("Photo missing", { x: x + 10, y: yTop - 34, size: 10, font: TI, color: grey }); yTop -= 60; }
+        pg.drawText(fit(N[d.id] + ".pdf", M, 7.5, w), { x, y: yTop - 11, size: 7.5, font: M, color: black });
+        return yTop - 26;
+      };
+      const avail = top - 12 - mg - 20, slot = avail / p.receipts.length;
+      let ly = top - 12;
+      for (const r of p.receipts) ly = (await draw(r, mg, ly, lw, slot, cents(r.amount))) - 6;
+      await draw(p.proof, mg + lw + gap, top - 12, rw, avail, payTotal(p));
+    }
     // page numbers
     const pages = pdf.getPages();
     if (pages.length > 1) pages.forEach((pp, i) => { const s = `${i + 1} / ${pages.length}`; pp.drawText(s, { x: W / 2 - T.widthOfTextAtSize(s, 9) / 2, y: 30, size: 9, font: T, color: grey }); });
