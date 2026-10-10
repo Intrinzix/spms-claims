@@ -50,7 +50,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 12px; }
 label.f { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--mute); font-weight: 500; min-width: 0; }
-input[type=text], input[type=email], input[type=number] {
+input[type=text], input[type=email], input[type=number], .fields select {
   font: inherit; font-size: 0.95rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; min-width: 0; }
 
 .payments { display: flex; flex-direction: column; gap: 14px; }
@@ -142,6 +142,7 @@ ol.steps input { margin-top: 4px; accent-color: var(--accent); }
       <label class="f">Event / Purchase<input type="text" id="event" placeholder="e.g. Games Night"></label>
       <label class="f">Prepared by<input type="text" id="prepName" placeholder="Your name"></label>
       <label class="f">Designation<input type="text" id="prepRole" placeholder="e.g. House Captain, Solertia"></label>
+      <label class="f">Claim type<select id="claimType"><option value="event">Event</option><option value="purchase">General purchase</option></select></label>
     </div>
   </section>
 
@@ -312,22 +313,16 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
     const seen = {};
     S.payments.forEach(p => {
       const shop = clean(p.shop) || "[Shop]"; const k = shop.toLowerCase();
-      if (!seen[k]) { seen[k] = { shop, kinds: {} }; byShop.push(seen[k]); }
-      p.receipts.forEach(r => { const kk = r.kind || "Receipt"; (seen[k].kinds[kk] = seen[k].kinds[kk] || []).push(N["tag:" + r.id]); });
+      if (!seen[k]) { seen[k] = { shop, tags: [] }; byShop.push(seen[k]); }
+      p.receipts.forEach(r => seen[k].tags.push(N["tag:" + r.id]));
     });
-    // e.g. "Shopee receipts 1.1, 1.2, BBQ Wholesale receipt and K Bakery proof of convo"
-    const parts = [];
-    byShop.forEach(s => Object.entries(s.kinds).forEach(([kind, tags]) => {
-      const t = tags.filter(Boolean), word = kind.toLowerCase();
-      parts.push(t.length ? `${s.shop} ${word === "receipt" && t.length > 1 ? "receipts" : word} ${t.join(", ")}` : `${s.shop} ${word}`);
-    }));
-    return joinList(parts);
+    // follows the template's "Pizza Hut order 1, 2, 3": e.g. "CHAGEE order", "Snack Depot orders 1, 2, 3", "Gadget Bazaar orders 1a, 1b, 2"
+    return joinList(byShop.map(s => { const t = s.tags.filter(Boolean); return t.length > 1 ? `${s.shop} orders ${t.join(", ")}` : `${s.shop} order${t.length ? " " + t[0] : ""}`; }));
   }
   const joinList = a => a.length < 2 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
 
   function mails(N) {
     const total = S.payments.reduce((a, p) => a + payTotal(p), 0);
-    const nRec = S.payments.reduce((a, p) => a + p.receipts.length, 0);
     const ev = val("event");
     $("#m1meta").innerHTML = `<dt>To</dt><dd><span class="ph">[FinCon school email]</span></dd>
       <dt>CC</dt><dd><span class="ph">[House Director email]</span>, <span class="ph">[VP (Student Life) email]</span></dd>
@@ -336,18 +331,17 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
     const shopLines = S.payments.map(p => `- ${label(p, N)}: SGD ${sgd(payTotal(p))}`).join("\n");
     $("#m1").textContent = `Hi [FinCon name],
 
-Please find attached the claims for ${phT(ev, "Event / Purchase")}: ${nRec} receipt${nRec === 1 ? "" : "s"} (one PDF each, plus proofs of payment) across ${S.payments.length} payment${S.payments.length === 1 ? "" : "s"}, totalling SGD ${sgd(total)}.
-
+Please find attached the claims for ${phT(ev, "Event / Purchase")}, totalling SGD ${sgd(total)}:
 ${shopLines}
 
 Thank you!
 ${phT(val("prepName"), "Your name")}${val("prepRole") ? "\n" + val("prepRole") : ""}`;
     $("#m2meta").innerHTML = `<dt>From</dt><dd><span class="ph">[Claimant]</span></dd><dt>To</dt><dd><span class="ph">[FinCon school email]</span></dd>`;
-    $("#m2").textContent = `I, [Matric Name], [Matric Number] will allow the claimant [FinCon Matric Name], [FinCon Matric Number] to claim on my behalf the amount of SGD ${sgd(total)} for the purchase of ${itemsText(N)} on ${phT(ev, "Event Name")}. If there is any dispute, I will settle myself and NTU is not liable to settle the dispute with the students involved.`;
+    $("#m2").textContent = `I, [Matric Name], [Matric Number] will allow the claimant [FinCon Matric Name], [FinCon Matric Number] to claim on my behalf the amount of SGD ${sgd(total)} for the purchase of ${itemsText(N)} ${$("#claimType").value === "purchase" ? "for " + phT(ev, "Purchase") : "on " + phT(ev, "Event Name")}. If there is any dispute, I will settle myself and NTU is not liable to settle the dispute with the students involved.`;
   }
 
   // ---------- steps ----------
-  const STEPS = ["Download the claim zip", "Email 1 to the FinCon, CC the House Director and VP (Student Life), zip attached", "Mark Email 1 as important (!)", "Email 2 from the claimant to the FinCon's school email", "Text the FinCon that the claim has been sent"];
+  const STEPS = ["Download the claim zip", "Send Email 1 to the FinCon, CC the House Director and VP (Student Life), with the zip attached", "Mark Email 1 as important (!)", "Send Email 2 from the claimant to the FinCon's school email", "Text the FinCon that the claim has been sent"];
   $("#steps").innerHTML = STEPS.map((s, i) => `<li><label><input type="checkbox" id="step${i}"> <span>${s}</span></label></li>`).join("");
 
   // ---------- events ----------
@@ -392,7 +386,7 @@ ${phT(val("prepName"), "Your name")}${val("prepRole") ? "\n" + val("prepRole") :
     render();
   }
   const KEEP = ["prepName", "prepRole"];
-  document.querySelectorAll(".panel input").forEach(i => i.addEventListener("input", () => {
+  document.querySelectorAll(".panel input, .panel select").forEach(i => i.addEventListener("input", () => {
     if (KEEP.includes(i.id)) { sampleFilled = sampleFilled.filter(x => x !== i.id); try { localStorage.setItem("claims:" + i.id, i.value); } catch (_) {} }
     derive();
   }));
@@ -585,7 +579,7 @@ ${phT(val("prepName"), "Your name")}${val("prepRole") ? "\n" + val("prepRole") :
     sampleMode = false; $("#banner").hidden = true;
     S.payments.forEach(p => [...p.receipts, p.proof].forEach(d => d.files.forEach(f => URL.revokeObjectURL(f.url))));
     S.payments = [newPay()];
-    $("#event").value = "";
+    $("#event").value = ""; $("#claimType").value = "event";
     sampleFilled.forEach(id => { const el = $("#" + id); let v = ""; try { v = localStorage.getItem("claims:" + id) || ""; } catch (_) {} el.value = v; });
     sampleFilled = [];
     STEPS.forEach((_, i) => $("#step" + i).checked = false);
