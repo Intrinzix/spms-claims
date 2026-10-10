@@ -8,9 +8,9 @@ A one-page tool for preparing SPMS House claims: from events, or general purchas
 
 1. Add one card per payment: the shop, each receipt's amount, and photos of the receipts and the proof of payment.
    - No receipt from the seller? Switch the row to **Proof of Convo** and add the chat screenshot instead.
-2. Download the **claim zip**: one PDF per receipt / proof of payment, named to the claims procedure. Several photos of one receipt become one multi-page PDF.
+2. Download the **claim zip**: one PDF per receipt / proof of payment, named to the claims procedure. Every photo is converted to PDF; several photos of one receipt become one multi-page PDF.
 3. Copy the two claim emails (Email 1: documents; Email 2: authorise claim) with the total and receipt list filled in.
-4. Optional: download the **claim pack**, a summary PDF for your own records.
+4. Optional: download the **summary receipt**, a one-page list of every file and the total.
 
 ## File names
 
@@ -36,4 +36,4 @@ Everything runs in your browser. Photos, amounts and names are never uploaded or
 
 ## Credits
 
-PDF and zip generation: [pdf-lib](https://pdf-lib.js.org/), [@pdf-lib/fontkit](https://github.com/Hopding/fontkit), [JSZip](https://stuk.github.io/jszip/). Embedded fonts (claim pack): Carlito (SIL Open Font License 1.1) and DejaVu Sans Mono (Bitstream Vera license), subset to Latin characters.
+PDF and zip generation: [pdf-lib](https://pdf-lib.js.org/), [@pdf-lib/fontkit](https://github.com/Hopding/fontkit), [JSZip](https://stuk.github.io/jszip/). Embedded fonts (summary receipt): Carlito (SIL Open Font License 1.1) and DejaVu Sans Mono (Bitstream Vera license), subset to Latin characters.
