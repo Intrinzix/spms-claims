@@ -31,7 +31,7 @@
 
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--sans); padding-inline: 16px; padding-block: 24px 56px; }
-.wrap { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.wrap { max-width: 1400px; margin: 0 auto; }
 h1 { font-size: 1.75rem; font-weight: 600; margin: 0; line-height: 1.2; text-wrap: balance; }
 h2 { font-size: 1rem; font-weight: 600; margin: 0; }
 .num { font-variant-numeric: tabular-nums; }
@@ -39,14 +39,12 @@ button, select { font: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* header: title left, send checklist right */
-/* header: title + claim email on the left, send checklist on the right; same columns as the grid below */
-.top { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; align-items: start; }
-.top-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.top h1 { padding-top: 4px; }
-.top .mail pre { max-height: none; }
-.sendbox { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
-@media (max-width: 900px) { .top { grid-template-columns: minmax(0, 1fr); } }
-.sendbox h2 { font-size: 0.875rem; color: var(--mute); }
+/* app: input flow on the left (title, claim details, payments); outputs on the right (summary, downloads, email, send steps) */
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 24px; align-items: start; }
+.main-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.main-col h1 { padding-top: 2px; }
+.sendbox { gap: 10px; }
+@media (max-width: 960px) { .app { grid-template-columns: minmax(0, 1fr); } }
 ol.steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 0.9375rem; }
 ol.steps label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 ol.steps input { margin-top: 5px; width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
@@ -63,8 +61,6 @@ input[type=text], input[type=number] {
   font: inherit; font-size: 1rem; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; width: 100%; min-width: 0; }
 input::placeholder { color: var(--mute); opacity: 0.75; }
 
-.grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; align-items: start; }
-@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* payment cards */
 .payments { display: flex; flex-direction: column; gap: 16px; }
@@ -109,8 +105,8 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
 }
 
 /* summary column */
-.side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; flex-direction: column; gap: 16px; }
-@media (max-width: 900px) { .side { position: static; } }
+.side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 16px; padding-bottom: 4px; }
+@media (max-width: 960px) { .side { position: static; max-height: none; overflow: visible; } }
 .ticket { background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 18px 18px 28px; font-size: 0.875rem;
   -webkit-mask: radial-gradient(circle 6px at 50% 100%, transparent 98%, #000) 0 0 / 16px 100% repeat-x; mask: radial-gradient(circle 6px at 50% 100%, transparent 98%, #000) 0 0 / 16px 100% repeat-x; }
 .ticket .t-head { text-align: center; border-bottom: 1px dashed var(--mute); padding-bottom: 10px; margin-bottom: 8px; }
@@ -133,56 +129,53 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
 .mail-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .mail-meta { font-size: 0.875rem; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 3px 12px; margin: 0; }
 .mail-meta dt { color: var(--mute); } .mail-meta dd { margin: 0; overflow-wrap: anywhere; }
-.mail pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 0.9375rem/1.55 var(--sans); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 12px; max-height: 320px; overflow: auto; }
+.mail pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 0.9375rem/1.55 var(--sans); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
 .copy { background: var(--surface); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 5px 12px; font-size: 0.875rem; font-weight: 600; }
 .ph { background: color-mix(in srgb, var(--warn) 20%, transparent); border-radius: 3px; padding: 0 2px; }
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 0.9375rem; max-width: calc(100% - 32px); }
 @media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s; } }
 </style>
 
-<div class="wrap">
-  <header class="top">
-    <div class="top-main" id="topMain">
-      <h1>SPMS Claims Builder</h1>
-      <section class="panel mail" id="mailPanel" aria-labelledby="m1H">
-        <div class="mail-head"><h2 id="m1H">Claim email</h2><button class="copy" type="button" data-copy="m1">Copy body</button></div>
-        <dl class="mail-meta" id="m1meta"></dl>
-        <pre id="m1"></pre>
-      </section>
+<div class="wrap app">
+  <div class="main-col">
+    <h1>SPMS Claims Builder</h1>
+
+    <div class="banner" id="banner" hidden>
+      <span><b>Demo claim.</b> The shops, receipts and names are made up.</span>
+      <button class="link" id="clearBtn" type="button">Clear</button>
     </div>
-    <section class="sendbox" aria-labelledby="sH">
+
+    <section class="panel" aria-labelledby="evtH">
+      <h2 id="evtH">Claim for</h2>
+      <div class="fields">
+        <label class="f">Event / Purchase<input type="text" id="event" placeholder="e.g. Games Night"></label>
+        <label class="f">Prepared by<input type="text" id="prepName" placeholder="Your name"></label>
+        <label class="f">Designation<input type="text" id="prepRole" placeholder="e.g. House Captain, Solertia"></label>
+      </div>
+    </section>
+
+    <main class="payments" id="payments" aria-label="Payments"></main>
+  </div>
+
+  <aside class="side">
+    <div class="ticket" aria-live="polite" id="ticket"></div>
+    <div class="actions">
+      <button class="btn" id="zipBtn" type="button">Download claim zip</button>
+      <button class="btn alt" id="packBtn" type="button">Download summary receipt</button>
+      <p class="note" id="dlNote" hidden></p>
+    </div>
+
+    <section class="panel mail" id="mailPanel" aria-labelledby="m1H">
+      <div class="mail-head"><h2 id="m1H">Claim email</h2><button class="copy" type="button" data-copy="m1">Copy body</button></div>
+      <dl class="mail-meta" id="m1meta"></dl>
+      <pre id="m1"></pre>
+    </section>
+
+    <section class="panel sendbox" aria-labelledby="sH">
       <h2 id="sH">Send it</h2>
       <ol class="steps" id="steps"></ol>
     </section>
-  </header>
-
-  <div class="banner" id="banner" hidden>
-    <span><b>Demo claim.</b> The shops, receipts and names are made up.</span>
-    <button class="link" id="clearBtn" type="button">Clear</button>
-  </div>
-
-  <section class="panel" aria-labelledby="evtH">
-    <h2 id="evtH">Claim for</h2>
-    <div class="fields">
-      <label class="f">Event / Purchase<input type="text" id="event" placeholder="e.g. Games Night"></label>
-      <label class="f">Prepared by<input type="text" id="prepName" placeholder="Your name"></label>
-      <label class="f">Designation<input type="text" id="prepRole" placeholder="e.g. House Captain, Solertia"></label>
-    </div>
-  </section>
-
-  <div class="grid">
-    <main class="payments" id="payments" aria-label="Payments"></main>
-
-    <aside class="side">
-      <div class="ticket" aria-live="polite" id="ticket"></div>
-      <div class="actions">
-        <button class="btn" id="zipBtn" type="button">Download claim zip</button>
-        <button class="btn alt" id="packBtn" type="button">Download summary receipt</button>
-        <p class="note" id="dlNote" hidden></p>
-      </div>
-
-    </aside>
-  </div>
+  </aside>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -582,11 +575,6 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     STEPS.forEach((_, i) => $("#step" + i).checked = false);
     render(); $("#event").focus();
   });
-
-  // the claim email sits under the title on wide screens; on phones it moves below the downloads so the form comes first
-  const mq = matchMedia("(max-width: 900px)");
-  const placeMail = () => { const m = $("#mailPanel"); if (mq.matches) $(".side").appendChild(m); else $("#topMain").appendChild(m); };
-  placeMail(); mq.addEventListener ? mq.addEventListener("change", placeMail) : mq.addListener(placeMail);
 
   // opens empty; "#demo" in the address loads a made-up claim for testing
   S.payments = [newPay()]; render();
