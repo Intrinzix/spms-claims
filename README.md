@@ -9,8 +9,10 @@ A one-page tool for preparing SPMS House claims: from events, or general purchas
 1. Add one card per payment: the shop, each receipt's amount, and photos of the receipts and the proof of payment.
    - No receipt from the seller? Switch the row to **Proof of Convo** and add the chat screenshot instead.
 2. Download the **claim zip**: one PDF per receipt / proof of payment, named to the claims procedure. Every photo is converted to PDF; several photos of one receipt become one multi-page PDF.
-3. Copy the two claim emails (Email 1: documents; Email 2: authorise claim) with the total and receipt list filled in.
+3. Copy the **claim email**: one email with the zip attached and the authorisation written in, total and shops filled in.
 4. Optional: download the **summary receipt**, a one-page list of every file and the total.
+
+Claiming from a separate budget (for example alcohol)? Build it as its own claim to get a second zip, attach both zips to the same email, and add a second amount to the authorisation sentence.
 
 ## File names
 
@@ -25,10 +27,9 @@ A one-page tool for preparing SPMS House claims: from events, or general purchas
 ## Sending a claim
 
 1. Download the claim zip.
-2. Email 1 to the Finance Controller, CC the House Director and VP (Student Life), zip attached.
-3. Mark Email 1 as important (!).
-4. Email 2 from the claimant to the Finance Controller's school email.
-5. Text the Finance Controller that the claim has been sent.
+2. Send the claim email to the Finance Controller's school email, CC the House Director and VP (Student Life), with the zip attached.
+3. Mark the email as important (!).
+4. Text the Finance Controller that the claim has been sent.
 
 ## Privacy
 
