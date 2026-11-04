@@ -138,6 +138,10 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
 .note { font-size: 0.875rem; color: var(--mute); margin: 0; }
 .mail { display: flex; flex-direction: column; gap: 10px; }
 .mail-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mail-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.mail-fields label.f { font-size: 0.8125rem; }
+.mail-fields input[type=text] { padding: 7px 10px; font-size: 1rem; }
+@media (max-width: 420px) { .mail-fields { grid-template-columns: minmax(0, 1fr); } }
 .mail-meta { font-size: 0.875rem; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 3px 12px; margin: 0; }
 .mail-meta dt { color: var(--mute); } .mail-meta dd { margin: 0; overflow-wrap: anywhere; }
 .mail pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 0.9375rem/1.55 var(--sans); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
@@ -188,6 +192,13 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
 
     <section class="panel mail" id="mailPanel" aria-labelledby="m1H">
       <div class="mail-head"><h2 id="m1H">Claim email</h2><button class="copy" type="button" data-copy="m1">Copy body</button></div>
+      <p class="note">Optional: fill these in to complete the email. They aren't saved anywhere.</p>
+      <div class="mail-fields">
+        <label class="f">Your matric name<input type="text" id="mName" autocomplete="off" placeholder="As on matric card"></label>
+        <label class="f">Your matric number<input type="text" id="mNum" autocomplete="off" placeholder="e.g. U2512345A"></label>
+        <label class="f">FinCon matric name<input type="text" id="fName" autocomplete="off" placeholder="As on matric card"></label>
+        <label class="f">FinCon matric number<input type="text" id="fNum" autocomplete="off" placeholder="e.g. U2412345B"></label>
+      </div>
       <dl class="mail-meta" id="m1meta"></dl>
       <pre id="m1"></pre>
     </section>
@@ -369,7 +380,7 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
     const where = "for " + phT(ev, "Event / Purchase");
     $("#m1").textContent = `Dear [FinCon name],
 
-I, [Matric Name] ([Matric Number]), will allow the claimant [FinCon Matric Name], [FinCon Matric Number] to claim on my behalf the amount of $${sgd(total)} for the purchase of the ${itemsText(N)} items ${where}.
+I, ${phT(val("mName"), "Matric Name")} (${phT(val("mNum").toUpperCase(), "Matric Number")}), will allow the claimant ${phT(val("fName"), "FinCon Matric Name")}, ${phT(val("fNum").toUpperCase(), "FinCon Matric Number")} to claim on my behalf the amount of $${sgd(total)} for the purchase of the ${itemsText(N)} items ${where}.
 
 If there is any dispute, I will settle myself and NTU is not liable to settle the dispute with the students involved.
 
@@ -701,7 +712,7 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     $("#banner").hidden = true;
     S.payments.forEach(p => [...p.receipts, p.proof].forEach(d => d.files.forEach(f => URL.revokeObjectURL(f.url))));
     S.payments = [newPay()]; S.budget = null; renderBudget();
-    ["event", "prepName", "prepRole"].forEach(id => $("#" + id).value = "");
+    ["event", "prepName", "prepRole", "mName", "mNum", "fName", "fNum"].forEach(id => $("#" + id).value = "");
     STEPS.forEach((_, i) => $("#step" + i).checked = false);
     render(); $("#event").focus();
   });
