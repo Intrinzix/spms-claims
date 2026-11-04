@@ -4,10 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>SPMS Claims Builder</title>
-<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600&display=swap">
@@ -100,6 +99,17 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
 .link { background: none; border: none; color: var(--accent); font-weight: 600; padding: 4px 0; font-size: 0.9375rem; }
 .add-pay { border: 1.5px dashed var(--line); background: transparent; color: var(--accent); border-radius: 12px; padding: 16px; font-weight: 600; }
 .add-pay:hover { border-color: var(--accent); }
+/* budget sheet: one Excel file, copied into the zip as-is */
+.budget { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.pick { position: relative; display: inline-flex; align-items: center; border: 1.5px dashed var(--line); border-radius: 10px; padding: 10px 16px; font-weight: 600; color: var(--accent); background: var(--field); cursor: pointer; }
+.pick:hover, .pick.drag, .pick:focus-within { border-color: var(--accent); }
+.pick:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pick input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); pointer-events: none; }
+.budget .bname { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 200px; }
+.budget .bname b { font-weight: 600; font-size: 0.9375rem; overflow-wrap: anywhere; }
+.budget .bname span { font-size: 0.875rem; color: var(--mute); overflow-wrap: anywhere; }
+.budget .rm { background: none; border: none; color: var(--mute); font-size: 0.8125rem; padding: 2px 0; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--line); }
+.budget .rm:hover { color: var(--bad); }
 @media (max-width: 560px) {
   .pay-head, .doc, .pay-foot { padding-inline: 14px; }
   .doc { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; } .slot { width: 56px; height: 56px; } .amt { grid-column: 2; }
@@ -155,6 +165,11 @@ input::placeholder { color: var(--mute); opacity: 0.75; }
       </div>
     </section>
 
+    <section class="panel" aria-labelledby="budH">
+      <h2 id="budH">Budget sheet</h2>
+      <div class="budget" id="budget"></div>
+    </section>
+
     <main class="payments" id="payments" aria-label="Payments"></main>
   </div>
 
@@ -194,7 +209,7 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
   let uid = 0; const nid = () => "d" + (++uid);
 
   // ---------- state ----------
-  const S = { payments: [] };
+  const S = { payments: [], budget: null };
   // a receipt row is a "Receipt", or a "Proof of Convo" (chat screenshot) when the seller gives no receipt
   const KINDS = ["Receipt", "Proof of Convo"];
 
@@ -307,6 +322,7 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
       const untouched = !clean(p.shop) && !payTotal(p) && !p.proof.files.length && p.receipts.every(r => !r.files.length);
       if (c) c.innerHTML = untouched ? "" : pr.length ? `<span class="chip warn">Missing: ${esc(pr.join(", "))}</span>` : `<span class="chip ok">Complete</span>`;
     });
+    const bn = $("[data-bname]"); if (bn) bn.textContent = budgetName();
     ticket(N); mails(N);
   }
 
@@ -319,13 +335,15 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
       rows += `<div class="row"><span class="n">${esc(N[p.proof.id])}.pdf</span></div>`; files++;
       total += payTotal(p); missing += problems(p).length;
     });
+    rows += `<div class="grp">Budget sheet</div><div class="row"><span class="n">${S.budget ? esc(budgetName()) : "Not added yet"}</span></div>`;
+    if (S.budget) files++; else missing++;
     // nothing entered yet: say what will appear instead of listing placeholder names
     const blank = S.payments.every(p => !clean(p.shop) && !payTotal(p) && !p.proof.files.length && p.receipts.every(r => !r.files.length));
     if (blank) { $("#ticket").innerHTML = `<div class="t-head"><b>${esc(ev)}</b></div><div class="empty">Your PDF file names and total appear here as you add payments.</div>`; return; }
     $("#ticket").innerHTML = `<div class="t-head"><b>${esc(ev)}</b></div>
       ${rows}
       <div class="row tot"><span>Total</span><span class="v num">SGD ${sgd(total)}</span></div>
-      <div class="row meta"><span>${files} PDFs · ${S.payments.length} payment${S.payments.length === 1 ? "" : "s"}</span></div>
+      <div class="row meta"><span>${files} file${files === 1 ? "" : "s"} · ${S.payments.length} payment${S.payments.length === 1 ? "" : "s"}</span></div>
       <div class="status ${missing ? "warn" : "ok"}">${missing ? `${missing} thing${missing === 1 ? "" : "s"} missing` : "Ready to send"}</div>`;
   }
 
@@ -363,8 +381,32 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
   }
 
 
+  // ---------- budget sheet ----------
+  // The Excel budget sheet goes into the zip untouched, renamed "[Event / Purchase] Budget Sheet.xlsx" (original extension kept).
+  const XL = /\.(xlsx|xlsm|xls)$/i;
+  const budgetExt = () => S.budget ? (S.budget.name.match(XL) || [, "xlsx"])[1].toLowerCase() : "xlsx";
+  const budgetName = () => `${clean(val("event")) || "[Event / Purchase]"} Budget Sheet.${budgetExt()}`;
+  const fmtSize = n => n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1048576).toFixed(1) + " MB";
+  function renderBudget() {
+    const b = S.budget;
+    $("#budget").innerHTML = `<label class="pick" id="budgetPick">${b ? "Replace sheet" : "Add Excel budget sheet"}<input type="file" id="budgetFile" accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" aria-label="Add the budget sheet"></label>
+      <div class="bname">${b ? `<b data-bname></b><span>${esc(b.name)} · ${fmtSize(b.blob.size)}</span>` : `<span>The approved budget sheet (.xlsx). It goes into the claim zip as is.</span>`}</div>
+      ${b ? `<button type="button" class="rm" id="budgetRm">Remove</button>` : ""}`;
+    derive();
+  }
+  function setBudget(list) {
+    const f = [...(list || [])][0]; if (!f) return;
+    if (!XL.test(f.name)) return toast("The budget sheet should be an Excel file (.xlsx).");
+    S.budget = { name: f.name, blob: f }; renderBudget();
+  }
+  $("#budget").addEventListener("change", e => { if (e.target.id === "budgetFile") setBudget(e.target.files); });
+  $("#budget").addEventListener("click", e => { if (e.target.id === "budgetRm") { S.budget = null; renderBudget(); } });
+  $("#budget").addEventListener("dragover", e => { const s = e.target.closest(".pick"); if (s) { e.preventDefault(); s.classList.add("drag"); } });
+  $("#budget").addEventListener("dragleave", e => { const s = e.target.closest(".pick"); if (s) s.classList.remove("drag"); });
+  $("#budget").addEventListener("drop", e => { const s = e.target.closest(".pick"); if (!s) return; e.preventDefault(); setBudget(e.dataTransfer.files); });
+
   // ---------- steps ----------
-  const STEPS = ["Download the claim zip", "Send the claim email to the FinCon's school email, CC the House Director and VP (Student Life), with the zip attached", "Mark the email as important (!)", "Text the FinCon that the claim has been sent"];
+  const STEPS = ["Download the claim zip (receipts, proofs and the budget sheet)", "Send the claim email to the FinCon's school email, CC the House Director and VP (Student Life), with the zip attached", "Mark the email as important (!)", "Text the FinCon that the claim has been sent"];
   $("#steps").innerHTML = STEPS.map((s, i) => `<li><label><input type="checkbox" id="step${i}"> <span>${s}</span></label></li>`).join("");
 
   // ---------- events ----------
@@ -433,7 +475,7 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     }
     if (!dl) { $("#zipBtn").hidden = true; $("#packBtn").hidden = true; $("#dlNote").textContent = "Downloads aren't available in this view. Open the page in claude.ai to download the zip and summary receipt."; $("#dlNote").hidden = false; }
   })();
-  const ready = () => { const m = S.payments.reduce((a, p) => a + problems(p).length, 0); if (m) toast(`${m} thing${m === 1 ? "" : "s"} still missing. Exporting anyway.`); };
+  const ready = () => { const m = S.payments.reduce((a, p) => a + problems(p).length, 0) + (S.budget ? 0 : 1); if (m) toast(`${m} thing${m === 1 ? "" : "s"} still missing. Exporting anyway.`); };
 
   // Photos are redrawn upright (phone rotation applied) and capped at 2400px on the long side, then saved as JPEG.
   const loadImg = url => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
@@ -479,6 +521,7 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
         if (!d.files.length) continue;
         dir.file(N[d.id] + ".pdf", await docToPdf(d.files));
       }
+      if (S.budget) dir.file(budgetName(), await S.budget.blob.arrayBuffer());
       const blob = await z.generateAsync({ type: "blob" });
       await save(`${ev} Claims.zip`, blob, btn);
     } catch (_) { toast("Couldn't build the zip."); btn.disabled = false; }
@@ -511,7 +554,9 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     // summary page
     let pg = pdf.addPage([W, HT]); let y = HT - mg;
     pg.drawText(fit(`Claims for: ${val("event") || "[Event / Purchase]"}`, TB, 16, W - 2 * mg), { x: mg, y: y - 12, size: 16, font: TB, color: black }); y -= 32;
-    pg.drawText(fit(`Prepared by ${val("prepName") || "[Name]"}, ${val("prepRole") || "[Designation]"}`, T, 11.5, W - 2 * mg), { x: mg, y, size: 11.5, font: T, color: black }); y -= 34;
+    pg.drawText(fit(`Prepared by ${val("prepName") || "[Name]"}, ${val("prepRole") || "[Designation]"}`, T, 11.5, W - 2 * mg), { x: mg, y, size: 11.5, font: T, color: black }); y -= 18;
+    pg.drawText("Budget sheet: ", { x: mg, y, size: 10.5, font: T, color: black });
+    pg.drawText(fit(S.budget ? budgetName() : "not added", M, 9, W - 2 * mg - 70), { x: mg + T.widthOfTextAtSize("Budget sheet: ", 10.5), y, size: 9, font: M, color: S.budget ? black : grey }); y -= 30;
     const amtX = W - mg;
     const head = () => { rule(y + 14, 1); pg.drawText("File", { x: mg, y, size: 10.5, font: TB, color: black }); right("Amount (SGD)", amtX, y, TB, 10.5); y -= 7; rule(y, 0.5); y -= 16; };
     head();
@@ -611,6 +656,20 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     msgs.forEach(([me, t]) => { const tw = g.measureText(t).width + 24, x = me ? w - tw - 14 : 14; g.fillStyle = me ? "#2b5278" : "#182533"; g.fillRect(x, y, tw, 34); g.fillStyle = "#e9eef3"; g.fillText(t, x + 12, y + 22); y += 46; });
     stamp(g, w, h); return canvasBlob(c);
   }
+  // a minimal real .xlsx (SAMPLE) so the demo zip shows where the budget sheet lands
+  async function sampleBudget(lines) {
+    const x = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const cell = (r, c, v) => typeof v === "number" ? `<c r="${c}${r}"><v>${v}</v></c>` : `<c r="${c}${r}" t="inlineStr"><is><t>${x(v)}</t></is></c>`;
+    const rows = [["SAMPLE budget", ""], ["Item", "Budgeted (SGD)"], ...lines, ["Total", Math.round(lines.reduce((a, l) => a + l[1], 0) * 100) / 100]]
+      .map((l, i) => `<row r="${i + 1}">${cell(i + 1, "A", l[0])}${cell(i + 1, "B", l[1])}</row>`).join("");
+    const z = new JSZip();
+    z.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+    z.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    z.file("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Budget" sheetId="1" r:id="rId1"/></sheets></workbook>');
+    z.file("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>');
+    z.file("xl/worksheets/sheet1.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`);
+    return z.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  }
   const asFile = (blob, name) => ({ name, type: "image/jpeg", blob, url: URL.createObjectURL(blob) });
   async function loadSample() {
     $("#event").value = "Solertia x Peritia Games Night"; $("#prepName").value = "Tan Wei Ming"; $("#prepRole").value = "House Captain, Solertia";
@@ -636,21 +695,21 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     sd.receipts[2].files = [asFile(await mockReceipt("SNACK DEPOT", "SD-10444", "08/10/2026", [["Ice bag 3kg", 4.25], ["Napkins", 4.25]]), "IMG_2052.jpg")];
     sd.proof.files = [asFile(await mockBank("Snack Depot", 36.5, "08 Oct 2026"), "Screenshot_0960.jpg")];
     S.payments = [pz, kb, g1, g2, sd]; render();
+    S.budget = { name: "Games Night Budget.xlsx", blob: await sampleBudget([["Northpoint Pizza", 53.42], ["Kopi Corner Bakery", 40], ["Gadget Bazaar", 35], ["Snack Depot", 36.5]]) }; renderBudget();
   }
   $("#clearBtn").addEventListener("click", () => {
     $("#banner").hidden = true;
     S.payments.forEach(p => [...p.receipts, p.proof].forEach(d => d.files.forEach(f => URL.revokeObjectURL(f.url))));
-    S.payments = [newPay()];
+    S.payments = [newPay()]; S.budget = null; renderBudget();
     ["event", "prepName", "prepRole"].forEach(id => $("#" + id).value = "");
     STEPS.forEach((_, i) => $("#step" + i).checked = false);
     render(); $("#event").focus();
   });
 
   // opens empty; "#demo" in the address loads a made-up claim for testing
-  S.payments = [newPay()]; render();
+  S.payments = [newPay()]; render(); renderBudget();
   if (location.hash === "#demo") { $("#banner").hidden = false; loadSample(); }
 })();
 </script>
-
 </body>
 </html>
