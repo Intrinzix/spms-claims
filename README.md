@@ -33,7 +33,7 @@ Claiming from a separate budget (for example alcohol)? Build it as its own claim
 
 ## Privacy
 
-Everything runs in your browser. Photos, amounts and names are never uploaded or stored anywhere.
+Everything runs in your browser. Photos, amounts and names are never uploaded. Your draft (photos included, matric details excluded) is saved in this browser only, so a reload keeps your work; it is dropped after 14 days or when you tap "Start over".
 
 ## Credits
 

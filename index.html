@@ -52,6 +52,10 @@ ol.steps input:checked + span { color: var(--mute); text-decoration: line-throug
 .banner { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
   background: var(--tint); border: 1px dashed var(--accent); border-radius: 10px; padding: 10px 16px; }
 .banner[hidden] { display: none !important; }
+/* draft saved in this browser */
+.saved { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; font-size: 0.875rem; color: var(--mute); margin-top: -8px; }
+.saved .link { font-size: 0.875rem; padding: 2px 0; }
+.saved .link.arm { color: var(--bad); }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
@@ -181,6 +185,10 @@ button.slot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2p
     <div class="banner" id="banner" hidden>
       <span><b>Demo claim.</b> The shops, receipts and names are made up.</span>
       <button class="link" id="clearBtn" type="button">Clear</button>
+    </div>
+    <div class="saved" id="savedBar" hidden>
+      <span id="savedMsg">Draft saved in this browser only (photos included). It stays after a reload for 14 days.</span>
+      <button class="link" id="startOver" type="button">Start over</button>
     </div>
 
     <section class="panel" aria-labelledby="evtH">
@@ -354,6 +362,7 @@ window.PACK_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRgS7BMsAAFHQAAAAWEdQT1Pms/9p
   }
 
   function derive() {
+    queueSave();
     const N = names();
     document.querySelectorAll("[data-fname]").forEach(el => el.textContent = N[el.dataset.fname] || "");
     S.payments.forEach(p => {
@@ -429,6 +438,7 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
   const budgetName = () => `${clean(val("event")) || "[Event / Purchase]"} Budget Sheet.${budgetExt()}`;
   const fmtSize = n => n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1048576).toFixed(1) + " MB";
   function renderBudget() {
+    queueSave();
     const b = S.budget;
     $("#budget").innerHTML = `<label class="pick" id="budgetPick">${b ? "Replace sheet" : "Add Excel budget sheet"}<input type="file" id="budgetFile" accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" aria-label="Add the budget sheet"></label>
       <div class="bname">${b ? `<b data-bname></b><span>${esc(b.name)} · ${fmtSize(b.blob.size)}</span>` : `<span>The approved budget sheet (.xlsx). It goes into the claim zip as is.</span>`}</div>
@@ -791,18 +801,87 @@ ${phT(val("prepName"), "Your Name")}, ${phT(val("prepRole"), "Designation")}
     S.payments = [pz, kb, g1, g2, sd]; render();
     S.budget = { name: "Games Night Budget.xlsx", blob: await sampleBudget([["Northpoint Pizza", 53.42], ["Kopi Corner Bakery", 40], ["Gadget Bazaar", 35], ["Snack Depot", 36.5]]) }; renderBudget();
   }
-  $("#clearBtn").addEventListener("click", () => {
+  $("#clearBtn").addEventListener("click", () => clearAll());
+  function clearAll() {
     $("#banner").hidden = true;
     S.payments.forEach(p => [...p.receipts, p.proof].forEach(d => d.files.forEach(f => URL.revokeObjectURL(f.url))));
     S.payments = [newPay()]; S.budget = null; renderBudget();
     ["event", "prepName", "prepRole", "mName", "mNum", "fName", "fNum"].forEach(id => $("#" + id).value = "");
     STEPS.forEach((_, i) => $("#step" + i).checked = false);
     render(); $("#event").focus();
+  }
+
+  // ---------- draft saved in this browser ----------
+  // Everything except the matric fields is kept in IndexedDB on this device, so a reload doesn't lose work.
+  // Nothing is uploaded. Drafts older than 14 days are dropped. The demo claim is never saved.
+  const DRAFT_DAYS = 14, FIELDS = ["event", "prepName", "prepRole"];
+  let dbP = null, saveT = null, restoring = true;
+  const openDb = () => dbP || (dbP = new Promise((res, rej) => {
+    try {
+      const rq = indexedDB.open("spms-claims", 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore("draft");
+      rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+    } catch (e) { rej(e); }
+  }).catch(e => { dbP = Promise.reject(e); dbP.catch(() => {}); throw e; }));
+  const idb = (mode, fn) => openDb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction("draft", mode), st = tx.objectStore("draft"), rq = fn(st);
+    tx.oncomplete = () => res(rq && rq.result); tx.onerror = tx.onabort = () => rej(tx.error);
+  }));
+  const isDemo = () => !$("#banner").hidden;
+  const hasContent = () => FIELDS.some(id => val(id)) || !!S.budget ||
+    S.payments.some(p => clean(p.shop) || [...p.receipts, p.proof].some(d => d.files.length || (d.amount && String(d.amount).trim())));
+  function queueSave() {
+    if (restoring) return;
+    clearTimeout(saveT); saveT = setTimeout(saveDraft, 400);
+  }
+  async function saveDraft() {
+    if (isDemo()) return;
+    const bar = $("#savedBar");
+    if (!hasContent()) { bar.hidden = true; try { await idb("readwrite", st => st.delete("current")); } catch (_) {} return; }
+    const fileRec = f => ({ name: f.name, type: f.type, blob: f.blob });
+    const docRec = d => ({ amount: d.amount, kind: d.kind, files: d.files.map(fileRec) });
+    const rec = {
+      v: 1, savedAt: Date.now(),
+      fields: Object.fromEntries(FIELDS.map(id => [id, $("#" + id).value])),
+      steps: STEPS.map((_, i) => $("#step" + i).checked),
+      payments: S.payments.map(p => ({ shop: p.shop, receipts: p.receipts.map(docRec), proof: docRec(p.proof) })),
+      budget: S.budget ? { name: S.budget.name, blob: S.budget.blob } : null
+    };
+    try { await idb("readwrite", st => st.put(rec, "current")); bar.hidden = false; }
+    catch (_) { bar.hidden = false; $("#savedMsg").textContent = "This browser isn't letting the page save a draft, so a reload will clear it."; $("#startOver").hidden = true; }
+  }
+  async function restoreDraft() {
+    let rec = null;
+    try { rec = await idb("readonly", st => st.get("current")); } catch (_) { return false; }
+    if (!rec || rec.v !== 1) return false;
+    if (Date.now() - rec.savedAt > DRAFT_DAYS * 864e5) { try { await idb("readwrite", st => st.delete("current")); } catch (_) {} return false; }
+    FIELDS.forEach(id => $("#" + id).value = (rec.fields && rec.fields[id]) || "");
+    (rec.steps || []).forEach((c, i) => { const el = $("#step" + i); if (el) el.checked = !!c; });
+    const toFile = f => ({ name: f.name, type: f.type, blob: f.blob, url: URL.createObjectURL(f.blob) });
+    const toDoc = d => Object.assign(newDoc(d.amount || "", d.kind || "Receipt"), { files: (d.files || []).map(toFile) });
+    S.payments = (rec.payments || []).map(p => { const np = newPay(p.shop || ""); np.receipts = (p.receipts || []).map(toDoc); np.proof = toDoc(p.proof || {}); if (!np.receipts.length) np.receipts = [newDoc()]; return np; });
+    if (!S.payments.length) S.payments = [newPay()];
+    S.budget = rec.budget ? { name: rec.budget.name, blob: rec.budget.blob } : null;
+    render(); renderBudget();
+    S.payments.forEach(p => [...p.receipts, p.proof].forEach(d => d.files.filter(f => f.type === "application/pdf").forEach(f => pdfThumb(f).then(() => render()))));
+    return true;
+  }
+  $("#steps").addEventListener("change", () => queueSave());
+  // two taps so a stray tap can't wipe a half-built claim (confirm() is blocked inside Claude)
+  let armT = null;
+  $("#startOver").addEventListener("click", async () => {
+    const b = $("#startOver");
+    if (!b.classList.contains("arm")) { b.classList.add("arm"); b.textContent = "Tap again to clear everything"; clearTimeout(armT); armT = setTimeout(() => { b.classList.remove("arm"); b.textContent = "Start over"; }, 4000); return; }
+    clearTimeout(armT); b.classList.remove("arm"); b.textContent = "Start over";
+    clearAll(); $("#savedBar").hidden = true;
+    try { await idb("readwrite", st => st.delete("current")); } catch (_) {}
+    toast("Cleared");
   });
 
   // opens empty; "#demo" in the address loads a made-up claim for testing
   S.payments = [newPay()]; render(); renderBudget();
-  if (location.hash === "#demo") { $("#banner").hidden = false; loadSample(); }
+  if (location.hash === "#demo") { $("#banner").hidden = false; restoring = false; loadSample(); }
+  else restoreDraft().then(ok => { restoring = false; if (ok) { $("#savedBar").hidden = false; toast("Picked up where you left off"); } });
 })();
 </script>
 </body>
